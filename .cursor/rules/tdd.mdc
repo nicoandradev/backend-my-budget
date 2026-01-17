@@ -1,0 +1,196 @@
+---
+description: TDD cycle with TPP transformations for the GREEN step
+alwaysApply: true
+---
+
+# Test-Driven Development (TDD)
+
+**ALWAYS follow the complete cycle:**
+
+## 0. 🤔 REASON
+
+Before any code, understand the problem:
+- I ask questions to the Technical Lead to clarify requirements
+- I reason about the problem and its cases
+- I create a list of cases that will be the tests (and write them in the test file as a TODO List)
+- I organize cases from least to most difficult:
+  - First: Happy path (simplest and most common case)
+  - Then: Alternative cases
+  - Finally: Edge cases and exceptions
+- I validate the list with the Technical Lead before starting
+
+## 1. 🔴 RED
+
+Write the test before production code:
+- I take the first case from the list (the simplest)
+- "What test do I write for this case?"
+- I write the test → **Doesn't compile** (function/class doesn't exist)
+- I write the **minimum code** to make it compile (empty function, return null, etc.)
+- I run the test → **Fails** (incorrect behavior)
+- "How do we know this works?"
+
+## 2. 🟢 GREEN
+
+Implement the minimum to pass the test:
+- I follow **TPP (Transformation Priority Premise)** to choose the simplest transformation
+- Simple code, no premature optimizations
+- Make it work, we'll improve it later
+- The test passes → I move to the next step
+
+## 3. 🔵 REFACTOR
+
+Once the test passes:
+- "Can I simplify this?"
+- "Is there duplication I can eliminate?" (Rule of Three: wait until I see it 3 times before abstracting)
+- "Are the variable names clear?"
+- I follow the coding standards rules @.cursor/rules/coding-standards.mdc
+- I refactor while keeping tests green
+
+## 4. 🔄 RE-EVALUATE
+
+Before continuing with the next case:
+- I review the list of pending cases
+- "Is the next case still the simplest step?"
+- "Is there a simpler case I should do first?"
+- I reorder if necessary
+- I mark the completed case in the TODO list
+- I return to step 1 with the simplest case from the list
+
+---
+
+# Transformation Priority Premise (TPP)
+
+Guide for the GREEN step: choosing the simplest code transformation.
+
+**Transformations ordered from simplest to most complex:**
+
+1. {} –> nil: From no code to returning null.
+2. nil -> constant: From null to returning a literal value.
+3. constant -> constant+: From a simple literal value to a more complex one.
+4. constant -> scalar: From a literal value to a variable.
+5. statement -> statements: Adding more lines of code without conditionals.
+6. unconditional -> if: Introducing a conditional.
+7. scalar -> array: From simple variable to collection.
+8. array -> container: From collection to container.
+9. statement -> recursion: Introducing recursion.
+10. if -> while: Converting conditional to loop.
+11. expression -> function: Replacing expression with function call.
+12. variable -> assignment: Mutating a variable's value.
+
+**Principle**: In each GREEN cycle, I choose the transformation with the lowest number that makes the test pass. This prevents over-engineering and keeps the code simple.
+
+---
+
+# TPP Example in Action
+
+```typescript
+// Navigator (REASON):
+"List of examples to calculate total prices:
+1. Empty list
+2. List with one price
+3. List with multiple prices"
+
+// Test 1: Empty list
+test('calculates total of empty price list', () => {
+  const prices = [];
+  
+  const total = calculateTotal(prices);
+  
+  expect(total).toBe(0);
+});
+
+// Driver (RED): → Doesn't compile → Minimum to compile
+function calculateTotal(prices) {}
+
+// → Test fails (undefined !== 0)
+
+// Navigator (GREEN): "According to TPP: ({} → constant)"
+// Driver (GREEN):
+function calculateTotal(prices) {
+  return 0;
+}
+
+// ✅ Test passes
+
+// Navigator (REFACTOR): "Test passes, now let's refactor. All clear for now"
+
+// Navigator (RE-EVALUATE): "The next simplest case is: list with one price"
+
+// Test 2: List with one price
+test('calculates total of single price', () => {
+  const prices = [100];
+  
+  const total = calculateTotal(prices);
+  
+  expect(total).toBe(100);
+});
+
+// → ❌ Test fails (0 !== 100)
+
+// Navigator (GREEN): "According to TPP: (constant → scalar) - use the parameter"
+// Driver (GREEN):
+function calculateTotal(prices) {
+  if (prices.length === 0) return 0;
+  return prices[0];
+}
+
+// ✅ Both tests pass
+
+// Navigator (REFACTOR): "Test passes, now let's refactor. 
+// According to coding-standards, we can use a guard clause.
+// Names are clear"
+
+// Navigator (RE-EVALUATE): "The next case is: list with multiple prices"
+
+// Test 3: List with multiple prices
+test('calculates total of multiple prices', () => {
+  const prices = [100, 50, 25];
+  
+  const total = calculateTotal(prices);
+  
+  expect(total).toBe(175);
+});
+
+// → ❌ Test fails (100 !== 175)
+
+// Navigator (GREEN): "According to TPP I have options:
+// - (statement → tail-recursion) - transformation #9
+// - (if → while) - transformation #10
+// 
+// But in this language, declarative style with reduce is simpler
+// and clearer than recursion or loops. According to coding-standards point 9 on Functions:
+// 'Prefer declarative style when it improves readability'"
+
+// Driver (GREEN):
+function calculateTotal(prices) {
+  return prices.reduce((sum, price) => sum + price, 0);
+}
+
+// ✅ All tests pass
+
+// Navigator (REFACTOR): "Test passes, now let's refactor.
+// The code is simple and expressive. According to coding-standards, it's good"
+```
+
+---
+
+# Continuous Refactoring
+
+- I actively identify code smells
+- I suggest constant incremental improvements following @.cursor/rules/coding-standards.mdc
+- I propose extracting functions when there's complexity
+
+---
+
+# Simple Design
+
+Meets the simple design rules:
+1. Does it pass all tests?
+2. Does it clearly express intention?
+3. Does it have no duplication (of knowledge)?
+   - I wait to see duplication 3 times before abstracting
+   - Code can evolve in different directions
+   - Better to tolerate temporary duplication than premature abstractions
+4. Does it have the minimum number of elements?
+
+---

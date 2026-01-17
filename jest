@@ -1,0 +1,20 @@
+
+ PASS  tests/routes/registerRoute.test.ts
+  POST /register
+    ✓ registra un usuario exitosamente y devuelve token JWT (118 ms)
+    ✓ devuelve 409 cuando el email ya existe (73 ms)
+    ✓ devuelve 400 cuando falta el email (3 ms)
+    ✓ devuelve 400 cuando falta el password (3 ms)
+    ✓ devuelve 400 cuando falta el name (3 ms)
+    ✓ devuelve 400 cuando el email tiene formato inválido (3 ms)
+    ✓ guarda la contraseña hasheada en la base de datos (73 ms)
+    ✓ devuelve un token JWT válido que contiene userId y email (70 ms)
+
+Test Suites: 1 passed, 1 total
+Tests:       8 passed, 8 total
+Snapshots:   0 total
+Time:        1.797 s, estimated 2 s
+Ran all test suites.
+Jest did not exit one second after the test run has completed.
+
+'This usually means that there are asynchronous operations that weren't stopped in your tests. Conside

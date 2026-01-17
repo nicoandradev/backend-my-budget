@@ -1,0 +1,14 @@
+.gcloudignore
+.git
+.gitignore
+node_modules
+.env
+.env.local
+*.md
+tests
+coverage
+.nyc_output
+.vscode
+.idea
+*.log
+dist

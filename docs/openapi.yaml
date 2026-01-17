@@ -1,0 +1,455 @@
+openapi: 3.0.0
+info:
+  title: Budget Backend API
+  version: 1.0.0
+  description: API para gestión de presupuestos
+  contact:
+    name: API Support
+servers:
+  - url: http://localhost:3000
+    description: Servidor de desarrollo
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Mensaje de error
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email del usuario
+          example: usuario@example.com
+        password:
+          type: string
+          format: password
+          description: Contraseña del usuario
+          minLength: 6
+          example: password123
+        name:
+          type: string
+          description: Nombre del usuario
+          example: Juan Pérez
+    RegisterResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token JWT para autenticación
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    LoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email del usuario
+          example: usuario@example.com
+        password:
+          type: string
+          format: password
+          description: Contraseña del usuario
+          example: password123
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          description: Token JWT para autenticación
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+    CreateExpenseRequest:
+      type: object
+      required:
+        - merchant
+        - amount
+        - category
+        - date
+      properties:
+        merchant:
+          type: string
+          description: Nombre del comercio
+          example: Supermercado XYZ
+        amount:
+          type: number
+          description: Monto del gasto
+          minimum: 0.01
+          example: 125.5
+        category:
+          type: string
+          description: Categoría del gasto
+          example: Comida
+        date:
+          type: string
+          format: date
+          description: Fecha del gasto
+          example: '2024-01-15'
+    UpdateExpenseRequest:
+      type: object
+      required:
+        - merchant
+        - amount
+        - category
+        - date
+      properties:
+        merchant:
+          type: string
+          description: Nombre del comercio
+          example: Supermercado ABC
+        amount:
+          type: number
+          description: Monto del gasto
+          minimum: 0.01
+          example: 150
+        category:
+          type: string
+          description: Categoría del gasto
+          example: Comida
+        date:
+          type: string
+          format: date
+          description: Fecha del gasto
+          example: '2024-01-16'
+    Expense:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID del gasto
+        userId:
+          type: string
+          format: uuid
+          description: ID del usuario propietario
+        merchant:
+          type: string
+          description: Nombre del comercio
+        amount:
+          type: number
+          description: Monto del gasto
+        category:
+          type: string
+          description: Categoría del gasto
+        date:
+          type: string
+          format: date
+          description: Fecha del gasto
+        createdAt:
+          type: string
+          format: date-time
+          description: Fecha de creación
+        updatedAt:
+          type: string
+          format: date-time
+          description: Fecha de última actualización
+paths:
+  /expenses:
+    post:
+      summary: Crea un nuevo gasto
+      tags:
+        - Gastos
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+            example:
+              merchant: Supermercado XYZ
+              amount: 125.5
+              category: Comida
+              date: '2024-01-15'
+      responses:
+        '201':
+          description: Gasto creado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      summary: Lista todos los gastos del usuario autenticado
+      tags:
+        - Gastos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de gastos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /expenses/{id}:
+    get:
+      summary: Obtiene un gasto por ID
+      tags:
+        - Gastos
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID del gasto
+      responses:
+        '200':
+          description: Gasto encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No autorizado para acceder a este gasto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gasto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      summary: Actualiza un gasto existente
+      tags:
+        - Gastos
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID del gasto
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateExpenseRequest'
+            example:
+              merchant: Supermercado ABC
+              amount: 150
+              category: Comida
+              date: '2024-01-16'
+      responses:
+        '200':
+          description: Gasto actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No autorizado para actualizar este gasto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gasto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      summary: Elimina un gasto
+      tags:
+        - Gastos
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: ID del gasto
+      responses:
+        '204':
+          description: Gasto eliminado exitosamente
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: No autorizado para eliminar este gasto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Gasto no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /login:
+    post:
+      summary: Inicia sesión con email y contraseña
+      tags:
+        - Autenticación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: usuario@example.com
+              password: password123
+      responses:
+        '200':
+          description: Login exitoso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingField:
+                  value:
+                    error: Email es requerido
+                invalidEmail:
+                  value:
+                    error: Email tiene formato inválido
+        '401':
+          description: Credenciales inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Credenciales inválidas
+  /register:
+    post:
+      summary: Registra un nuevo usuario
+      tags:
+        - Autenticación
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: usuario@example.com
+              password: password123
+              name: Juan Pérez
+      responses:
+        '201':
+          description: Usuario registrado exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        '400':
+          description: Error de validación
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              examples:
+                missingField:
+                  value:
+                    error: Email es requerido
+                invalidEmail:
+                  value:
+                    error: Email tiene formato inválido
+        '409':
+          description: Email ya existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Email ya existe
+  /health:
+    get:
+      summary: Verifica el estado del servidor
+      tags:
+        - Sistema
+      responses:
+        '200':
+          description: Servidor funcionando correctamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+tags: []
