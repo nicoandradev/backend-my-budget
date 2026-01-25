@@ -12,7 +12,30 @@ Esta guía explica paso a paso cómo configurar GitHub Actions para desplegar au
 
 El service account permite que GitHub Actions se autentique con Google Cloud.
 
-### 1.1. Crear el Service Account
+### Opción A: Script Automático (Recomendado)
+
+Ejecuta el script que configura todo automáticamente:
+
+```bash
+npm run deploy:setup:sa
+```
+
+O directamente:
+
+```bash
+./scripts/setupServiceAccount.sh
+```
+
+Este script:
+- Crea el service account si no existe
+- Asigna todos los roles necesarios
+- Genera la key JSON para GitHub
+
+### Opción B: Manual
+
+Si prefieres hacerlo manualmente:
+
+#### 1.1. Crear el Service Account
 
 ```bash
 gcloud iam service-accounts create github-actions \
@@ -21,7 +44,7 @@ gcloud iam service-accounts create github-actions \
   --project=my-personal-budget-483023
 ```
 
-### 1.2. Asignar Roles Necesarios
+#### 1.2. Asignar Roles Necesarios
 
 El service account necesita estos permisos:
 
@@ -29,7 +52,7 @@ El service account necesita estos permisos:
 PROJECT_ID="my-personal-budget-483023"
 SA_EMAIL="github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# Cloud Run Admin (para desplegar servicios)
+# Cloud Run Admin (para desplegar y gestionar servicios)
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/run.admin"
@@ -43,7 +66,21 @@ gcloud projects add-iam-policy-binding ${PROJECT_ID} \
 gcloud projects add-iam-policy-binding ${PROJECT_ID} \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountUser"
+
+# Secret Manager Secret Accessor (para leer secrets en Cloud Run)
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/secretmanager.secretAccessor"
+
+# Service Usage Consumer (para habilitar APIs si es necesario)
+gcloud projects add-iam-policy-binding ${PROJECT_ID} \
+  --member="serviceAccount:${SA_EMAIL}" \
+  --role="roles/serviceusage.serviceUsageConsumer"
 ```
+
+**Nota**: Si prefieres usar permisos más granulares en lugar de roles amplios, puedes usar:
+- `roles/storage.objectCreator` en lugar de `roles/storage.admin` (solo para crear objetos en GCR)
+- `roles/secretmanager.secretAccessor` ya está incluido arriba
 
 ### 1.3. Crear y Descargar la Key JSON
 
@@ -101,9 +138,40 @@ Si no lo configuras, el workflow usará `budget-backend` por defecto.
 
 ## Paso 3: Crear Secrets en Google Secret Manager
 
-Los secrets de la aplicación (DATABASE_URL, JWT_SECRET, etc.) deben estar en Google Secret Manager.
+Los secrets de la aplicación deben estar en Google Secret Manager.
 
-### 3.1. Desde tu máquina local
+### Secrets Requeridos (Obligatorios)
+
+Estos secrets **deben** existir para que el deploy funcione:
+
+- `DATABASE_URL` - Connection string de Supabase/PostgreSQL
+- `JWT_SECRET` - Secreto para firmar tokens JWT
+
+### Secrets Opcionales
+
+Estos secrets son opcionales. El workflow solo los usará si existen:
+
+- `BANCOCHILE_CLIENT_ID` - Client ID de BancoChile (si usas webhooks)
+- `BANCOCHILE_CLIENT_SECRET` - Client Secret de BancoChile
+- `SMTP_HOST` - Host del servidor SMTP
+- `SMTP_PORT` - Puerto SMTP
+- `SMTP_USER` - Usuario SMTP
+- `SMTP_PASSWORD` - Contraseña SMTP
+- `SMTP_FROM_EMAIL` - Email remitente
+- `SMTP_FROM_NAME` - Nombre remitente
+- `FRONTEND_URL` - URL del frontend (para links en emails)
+
+**Nota**: El workflow detecta automáticamente qué secrets existen y solo usa los disponibles.
+
+### 3.1. Verificar qué secrets existen
+
+Antes de crear secrets, verifica cuáles ya existen y cuáles faltan:
+
+```bash
+npm run deploy:secrets:check
+```
+
+### 3.2. Crear secrets desde .env
 
 Si tienes un archivo `.env` con las variables:
 
@@ -195,10 +263,64 @@ El workflow se ejecutará automáticamente y desplegará la nueva versión.
 
 ## Troubleshooting
 
-### Error: "Permission denied" al desplegar
+### Error: "Permission denied" o "Insufficient permissions"
 
-- Verifica que el service account tiene los roles correctos
-- Verifica que la key JSON está correcta en `GCP_SA_KEY`
+**Causa común**: Faltan roles en el service account.
+
+**Solución**: Ejecuta todos los comandos de la sección 1.2 para asignar todos los roles necesarios:
+
+```bash
+PROJECT_ID="my-personal-budget-483023"
+SA_EMAIL="github-actions@${PROJECT_ID}.iam.gserviceaccount.com"
+
+# Verifica los roles actuales
+gcloud projects get-iam-policy ${PROJECT_ID} \
+  --flatten="bindings[].members" \
+  --filter="bindings.members:${SA_EMAIL}" \
+  --format="table(bindings.role)"
+
+# Si faltan roles, ejecuta los comandos de la sección 1.2
+```
+
+**Errores específicos**:
+
+- **"Permission denied on storage.objects.create"**: Falta `roles/storage.admin` o `roles/storage.objectCreator`
+- **"Permission denied on run.services.create"**: Falta `roles/run.admin`
+- **"Permission denied on secrets.access"**: Falta `roles/secretmanager.secretAccessor`
+- **"Permission denied on serviceaccounts.use"**: Falta `roles/iam.serviceAccountUser`
+
+### Error: "Secret not found" o "Secret requerido 'X' no existe"
+
+**Causa común**: Faltan secrets requeridos en Google Secret Manager.
+
+**Solución**:
+
+1. **Verifica qué secrets existen**:
+   ```bash
+   npm run deploy:secrets:check
+   ```
+
+2. **Crea los secrets faltantes**:
+   ```bash
+   # Agrega las variables a tu .env primero
+   npm run deploy:secrets:create
+   ```
+
+3. **O crea manualmente cada secret**:
+   ```bash
+   echo -n "valor-del-secret" | gcloud secrets create NOMBRE_SECRET --data-file=-
+   ```
+
+**Secrets requeridos mínimos**:
+- `DATABASE_URL` - Obligatorio
+- `JWT_SECRET` - Obligatorio
+
+Los demás secrets son opcionales. El workflow solo usará los que existan.
+
+### Error: "Permission denied on secrets.access"
+
+- Verifica que Cloud Run tiene permisos para acceder a los secrets (sección 3.3)
+- Verifica que el service account de GitHub Actions tiene `roles/secretmanager.secretAccessor`
 
 ### Error: "Secret not found"
 

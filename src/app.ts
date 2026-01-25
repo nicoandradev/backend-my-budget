@@ -17,25 +17,13 @@ dotenv.config();
 const app = express();
 
 app.use(express.json());
+const allowedOrigins = [
+  'https://fin-ko.com',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  process.env.FRONTEND_URL
+].filter(Boolean);
 
-/**
- * @swagger
- * /health:
- *   get:
- *     summary: Verifica el estado del servidor
- *     tags: [Sistema]
- *     responses:
- *       200:
- *         description: Servidor funcionando correctamente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: string
- *                   example: ok
- */
 app.get('/health', (request, response) => {
   response.json({ status: 'ok' });
 });
@@ -48,7 +36,23 @@ app.get('/api-docs.json', (request, response) => {
   response.setHeader('Content-Type', 'application/json');
   response.send(swaggerSpec);
 });
-app.use(cors())
+
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(registerRoute);
 app.use(loginRoute);
 app.use('/expenses', expensesRoute);

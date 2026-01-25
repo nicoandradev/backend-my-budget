@@ -48,8 +48,8 @@ secrets.forEach(secret => {
       );
       console.log(`✅ Secret ${secret.name} creado\n`);
     } catch (createError) {
-      const errorOutput = createError.stderr?.toString() || createError.message || '';
-      if (errorOutput.includes('already exists')) {
+      const errorOutput = createError.stderr?.toString() || createError.stdout?.toString() || createError.message || '';
+      if (errorOutput.includes('already exists') || errorOutput.includes('ALREADY_EXISTS')) {
         console.log(`⚠️  Secret ${secret.name} ya existe. Actualizando...`);
         try {
           execSync(
@@ -58,8 +58,9 @@ secrets.forEach(secret => {
           );
           console.log(`✅ Secret ${secret.name} actualizado\n`);
         } catch (updateError) {
-          console.error(`❌ Error al actualizar ${secret.name}:`, updateError.message);
-          console.log(`💡 Ejecuta 'npm run deploy:secrets:update' para actualizar todos los secrets\n`);
+          const updateErrorOutput = updateError.stderr?.toString() || updateError.stdout?.toString() || updateError.message || '';
+          console.error(`❌ Error al actualizar ${secret.name}:`, updateErrorOutput);
+          // No salir del proceso, continuar con los demás secrets
         }
       } else {
         console.error(`❌ Error al crear ${secret.name}:`, errorOutput);

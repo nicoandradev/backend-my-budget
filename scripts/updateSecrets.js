@@ -39,14 +39,37 @@ secrets.forEach(secret => {
   
   try {
     fs.writeFileSync(tempFile, value, 'utf8');
-    console.log(`📦 Actualizando secret: ${secret.name}...`);
-    execSync(
-      `gcloud secrets versions add ${secret.name} --data-file=${tempFile} --project=${PROJECT_ID}`,
-      { stdio: 'inherit' }
-    );
-    console.log(`✅ Secret ${secret.name} actualizado\n`);
+    
+    // Verificar si el secret existe
+    let secretExists = false;
+    try {
+      execSync(
+        `gcloud secrets describe ${secret.name} --project=${PROJECT_ID}`,
+        { stdio: 'pipe' }
+      );
+      secretExists = true;
+    } catch {
+      secretExists = false;
+    }
+    
+    if (secretExists) {
+      console.log(`📦 Actualizando secret: ${secret.name}...`);
+      execSync(
+        `gcloud secrets versions add ${secret.name} --data-file=${tempFile} --project=${PROJECT_ID}`,
+        { stdio: 'inherit' }
+      );
+      console.log(`✅ Secret ${secret.name} actualizado\n`);
+    } else {
+      console.log(`📦 Creando secret: ${secret.name} (no existe)...`);
+      execSync(
+        `gcloud secrets create ${secret.name} --data-file=${tempFile} --project=${PROJECT_ID}`,
+        { stdio: 'inherit' }
+      );
+      console.log(`✅ Secret ${secret.name} creado\n`);
+    }
   } catch (error) {
-    console.error(`❌ Error al actualizar ${secret.name}:`, error.message);
+    const errorOutput = error.stderr?.toString() || error.stdout?.toString() || error.message || '';
+    console.error(`❌ Error con secret ${secret.name}:`, errorOutput);
     process.exit(1);
   } finally {
     if (fs.existsSync(tempFile)) {

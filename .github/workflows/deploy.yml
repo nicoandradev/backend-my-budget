@@ -41,9 +41,81 @@ jobs:
           docker push $IMAGE_TAG
           echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
 
+      - name: Build secrets list
+        id: secrets
+        run: |
+          # Secrets requeridos (siempre necesarios)
+          REQUIRED_SECRETS="DATABASE_URL JWT_SECRET"
+          
+          # Secrets opcionales (solo se incluyen si existen)
+          OPTIONAL_SECRETS="BANCOCHILE_CLIENT_ID BANCOCHILE_CLIENT_SECRET SMTP_HOST SMTP_PORT SMTP_USER SMTP_PASSWORD SMTP_FROM_EMAIL SMTP_FROM_NAME FRONTEND_URL"
+          
+          # Obtener lista de secrets existentes en Secret Manager
+          echo "🔍 Verificando secrets en Secret Manager..."
+          EXISTING_SECRETS=$(gcloud secrets list --project=$PROJECT_ID --format="value(name)" 2>/dev/null || echo "")
+          
+          if [ -z "$EXISTING_SECRETS" ]; then
+            echo "⚠️  No se pudieron listar secrets. Continuando con verificación individual..."
+            EXISTING_SECRETS=""
+          fi
+          
+          # Construir lista de secrets para --set-secrets
+          SECRETS_LIST=""
+          
+          # Función para verificar si un secret existe
+          check_secret_exists() {
+            local secret_name=$1
+            if [ -n "$EXISTING_SECRETS" ]; then
+              echo "$EXISTING_SECRETS" | grep -q "^${secret_name}$"
+            else
+              # Si no pudimos listar, verificar individualmente
+              gcloud secrets describe "${secret_name}" --project=$PROJECT_ID &>/dev/null
+            fi
+          }
+          
+          # Agregar secrets requeridos
+          for secret in $REQUIRED_SECRETS; do
+            if check_secret_exists "$secret"; then
+              if [ -z "$SECRETS_LIST" ]; then
+                SECRETS_LIST="${secret}=${secret}:latest"
+              else
+                SECRETS_LIST="${SECRETS_LIST},${secret}=${secret}:latest"
+              fi
+              echo "✅ Secret requerido encontrado: $secret"
+            else
+              echo "❌ Error: Secret requerido '${secret}' no existe en Secret Manager"
+              exit 1
+            fi
+          done
+          
+          # Agregar secrets opcionales solo si existen
+          for secret in $OPTIONAL_SECRETS; do
+            if check_secret_exists "$secret"; then
+              SECRETS_LIST="${SECRETS_LIST},${secret}=${secret}:latest"
+              echo "✅ Secret opcional encontrado: $secret"
+            else
+              echo "⏭️  Secret opcional omitido (no existe): $secret"
+            fi
+          done
+          
+          echo ""
+          echo "📋 Secrets a usar en el deploy: $SECRETS_LIST"
+          echo "secrets_list=$SECRETS_LIST" >> $GITHUB_OUTPUT
+
       - name: Deploy to Cloud Run
         run: |
-          gcloud run deploy $SERVICE_NAME \
+          # Primero, limpiar todos los secrets del servicio si existe
+          # Esto evita problemas con secrets que ya no existen
+          if gcloud run services describe $SERVICE_NAME --region $REGION &>/dev/null; then
+            echo "🧹 Limpiando secrets antiguos del servicio existente..."
+            gcloud run services update $SERVICE_NAME \
+              --region $REGION \
+              --clear-secrets \
+              --quiet || true
+          fi
+          
+          # Construir comando de deploy
+          DEPLOY_CMD="gcloud run deploy $SERVICE_NAME \
             --image $IMAGE_TAG \
             --platform managed \
             --region $REGION \
@@ -52,8 +124,20 @@ jobs:
             --memory 512Mi \
             --cpu 1 \
             --min-instances 0 \
-            --max-instances 10 \
-            --set-secrets DATABASE_URL=DATABASE_URL:latest,JWT_SECRET=JWT_SECRET:latest,BANCOCHILE_CLIENT_ID=BANCOCHILE_CLIENT_ID:latest,BANCOCHILE_CLIENT_SECRET=BANCOCHILE_CLIENT_SECRET:latest,SMTP_HOST=SMTP_HOST:latest,SMTP_PORT=SMTP_PORT:latest,SMTP_USER=SMTP_USER:latest,SMTP_PASSWORD=SMTP_PASSWORD:latest,SMTP_FROM_EMAIL=SMTP_FROM_EMAIL:latest,SMTP_FROM_NAME=SMTP_FROM_NAME:latest,FRONTEND_URL=FRONTEND_URL:latest
+            --max-instances 10"
+          
+          # Agregar secrets solo si hay alguno configurado
+          SECRETS_LIST="${{ steps.secrets.outputs.secrets_list }}"
+          if [ -n "$SECRETS_LIST" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --set-secrets $SECRETS_LIST"
+            echo "📋 Usando secrets: $SECRETS_LIST"
+          else
+            echo "⚠️  No hay secrets configurados"
+          fi
+          
+          # Ejecutar deploy
+          echo "🚀 Desplegando servicio..."
+          eval $DEPLOY_CMD
 
       - name: Get service URL
         id: get-url
