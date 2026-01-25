@@ -45,6 +45,111 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 ```
 
+## Desplegar en Supabase
+
+Este proyecto soporta desplegar la base de datos en Supabase. Supabase es una plataforma que proporciona PostgreSQL como servicio con características adicionales.
+
+### Prerrequisitos
+
+1. **Instalar Supabase CLI**:
+
+```bash
+# macOS
+brew install supabase/tap/supabase
+
+# Windows (con Scoop)
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+
+# Linux
+npm install -g supabase
+```
+
+2. **Crear un proyecto en Supabase**:
+   - Ve a [supabase.com](https://supabase.com) y crea una cuenta
+   - Crea un nuevo proyecto
+   - Espera a que el proyecto esté listo (puede tomar unos minutos)
+
+### Configuración
+
+1. **Obtener la Connection String de Supabase**:
+   - En el dashboard de Supabase, ve a **Settings** > **Database**
+   - Busca la sección **Connection string**
+   - Selecciona **URI** y copia la connection string
+   - La connection string tiene el formato: `postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres`
+
+2. **Configurar `.env`**:
+
+Actualiza tu archivo `.env` con la connection string de Supabase:
+
+```
+DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[PROJECT-REF].supabase.co:5432/postgres
+JWT_SECRET=tu_secreto_jwt_aqui
+JWT_EXPIRES_IN=7d
+```
+
+**Nota**: Reemplaza `[YOUR-PASSWORD]` con la contraseña de tu base de datos y `[PROJECT-REF]` con la referencia de tu proyecto.
+
+### Ejecutar Migraciones
+
+El proyecto incluye migraciones versionadas en `supabase/migrations/`. Para aplicar las migraciones a tu proyecto de Supabase:
+
+1. **Autenticarte con Supabase CLI** (primera vez):
+
+```bash
+supabase login
+```
+
+Esto abrirá tu navegador para autenticarte con tu cuenta de Supabase.
+
+2. **Conectar tu proyecto local con Supabase**:
+
+```bash
+supabase link --project-ref [PROJECT-REF]
+```
+
+Necesitarás tu `project-ref` que puedes encontrar en la URL de tu proyecto de Supabase o en Settings > General.
+
+3. **Aplicar migraciones**:
+
+```bash
+npm run db:migrate:supabase
+```
+
+O directamente con Supabase CLI:
+
+```bash
+supabase db push
+```
+
+4. **Resetear la base de datos** (útil para desarrollo):
+
+```bash
+npm run db:reset:supabase
+```
+
+O directamente:
+
+```bash
+supabase db reset
+```
+
+### Notas Importantes
+
+- **SSL**: Las conexiones a Supabase requieren SSL. El código detecta automáticamente si estás usando Supabase (por la URL que contiene `supabase.co`) y configura SSL automáticamente.
+- **Compatibilidad**: El código es retrocompatible. Si usas PostgreSQL local, funcionará sin SSL. Si usas Supabase, se configurará SSL automáticamente.
+- **Migraciones**: Las migraciones están en `supabase/migrations/` y se ejecutan con Supabase CLI. El script `npm run db:schema` también funciona con Supabase gracias al soporte SSL automático.
+
+### Alternativa: Usar el Script de Schema
+
+Si prefieres no usar Supabase CLI, también puedes ejecutar el schema directamente:
+
+```bash
+npm run db:schema
+```
+
+Este script detectará automáticamente si estás usando Supabase y configurará SSL.
+
 ## Desarrollo
 
 ```bash
@@ -65,6 +170,43 @@ npm test
 npm run build
 npm start
 ```
+
+## Deploy a Producción
+
+El deploy se realiza automáticamente mediante **GitHub Actions** cuando haces push a la rama `main`.
+
+### Configuración Inicial
+
+1. **Configurar GitHub Actions** (solo una vez):
+   - Ver guía completa en [docs/CONFIGURAR_GITHUB_ACTIONS.md](docs/CONFIGURAR_GITHUB_ACTIONS.md)
+   - Resumen: Crear service account en GCP y configurar secrets en GitHub
+
+2. **Crear secrets en Google Secret Manager**:
+   ```bash
+   npm run deploy:secrets:create
+   ```
+
+### Deploy Automático
+
+Cada push a `main` desplegará automáticamente:
+
+```bash
+git add .
+git commit -m "Cambios en el backend"
+git push origin main
+```
+
+### Deploy Manual
+
+También puedes ejecutar el deploy manualmente desde GitHub:
+1. Ve a **Actions** en tu repositorio
+2. Selecciona **Deploy to Cloud Run**
+3. Click en **Run workflow**
+
+### Ver Documentación Completa
+
+- [Guía de Deploy a Producción](docs/DEPLOY_PRODUCTION.md)
+- [Configurar GitHub Actions](docs/CONFIGURAR_GITHUB_ACTIONS.md)
 
 ## Documentación de API
 

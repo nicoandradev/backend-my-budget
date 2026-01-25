@@ -9,7 +9,15 @@
     "start": "node dist/index.js",
     "test": "jest",
     "docs:export": "tsx scripts/exportOpenAPI.ts",
-    "db:schema": "tsx scripts/runSchema.ts"
+    "db:schema": "tsx scripts/runSchema.ts",
+    "db:migrate:supabase": "supabase db push",
+    "db:reset:supabase": "supabase db reset",
+    "deploy": "echo '⚠️  Deploy ahora se hace automáticamente vía GitHub Actions. Haz push a main o ejecuta el workflow manualmente desde GitHub.'",
+    "deploy:manual": "./scripts/deploy.sh my-personal-budget-483023 us-central1",
+    "deploy:secrets:create": "echo 'Creando secrets. Asegúrate de tener las variables en .env' && node scripts/createSecrets.js",
+    "deploy:secrets:update": "echo 'Actualizando secrets. Asegúrate de tener las variables en .env' && node scripts/updateSecrets.js",
+    "deploy:status": "gcloud run services describe budget-backend --region us-central1 --format='value(status.url)'",
+    "deploy:logs": "gcloud run services logs read budget-backend --region us-central1 --limit 50"
   },
   "keywords": [],
   "author": "",
@@ -21,11 +29,13 @@
     "express": "^4.18.2",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^6.9.8",
     "pg": "^8.11.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "@types/babel__generator": "^7.27.0",
     "@types/bcrypt": "^5.0.2",
     "@types/cors": "^2.8.19",
     "@types/express": "^4.17.21",
@@ -33,6 +43,7 @@
     "@types/js-yaml": "^4.0.9",
     "@types/jsonwebtoken": "^9.0.2",
     "@types/node": "^20.10.6",
+    "@types/nodemailer": "^6.4.14",
     "@types/pg": "^8.10.9",
     "@types/supertest": "^6.0.2",
     "@types/swagger-jsdoc": "^6.0.4",

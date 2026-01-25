@@ -1,0 +1,50 @@
+# Supabase CLI configuration file
+# See https://supabase.com/docs/guides/cli for more information
+
+[project]
+# Project ID from Supabase dashboard
+# project_id = "your-project-id"
+
+[auth]
+# Enable email authentication
+enabled = true
+
+[api]
+# API port
+port = 54321
+# API schemas
+schemas = ["public", "storage", "graphql_public"]
+# Extra schemas to expose
+extra_search_path = ["public", "extensions"]
+# Maximum number of rows returned from a view, table, or stored procedure
+max_rows = 1000
+
+[db]
+# Database port
+port = 54322
+# Database major version
+major_version = 15
+
+[studio]
+# Studio port
+port = 54323
+# Enable Studio
+enabled = true
+
+[inbucket]
+# Inbucket port
+port = 54324
+# Enable Inbucket
+enabled = true
+
+[storage]
+# Storage file size limit in bytes
+file_size_limit = 52428800
+
+[auth.email]
+# Enable email signup
+enable_signup = true
+# Double confirm email changes
+double_confirm_changes = true
+# Enable email confirmations
+enable_confirmations = false

@@ -13,9 +13,11 @@ async function runSchema() {
     process.exit(1);
   }
 
-  const pool = new Pool({
-    connectionString
-  });
+  const isSupabase = connectionString.includes('supabase.co');
+  const poolConfig = isSupabase
+    ? { connectionString, ssl: { rejectUnauthorized: false } }
+    : { connectionString };
+  const pool = new Pool(poolConfig);
 
   try {
     const schemaPath = join(__dirname, '../src/infrastructure/database/schema.sql');

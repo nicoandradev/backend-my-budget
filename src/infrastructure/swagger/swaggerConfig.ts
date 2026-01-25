@@ -13,8 +13,16 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
+        url: process.env.API_URL || 'http://localhost:3000',
+        description: process.env.NODE_ENV === 'production' ? 'Servidor de producción' : 'Servidor de desarrollo'
+      },
+      {
+        url: 'https://budget-backend-732507362790.us-central1.run.app',
+        description: 'Servidor de producción (Cloud Run)'
+      },
+      {
         url: 'http://localhost:3000',
-        description: 'Servidor de desarrollo'
+        description: 'Servidor de desarrollo local'
       }
     ],
     components: {

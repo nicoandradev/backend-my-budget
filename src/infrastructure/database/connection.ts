@@ -11,9 +11,11 @@ function getPool(): Pool {
     if (!connectionString) {
       throw new Error('DATABASE_URL no está configurado');
     }
-    poolInstance = new Pool({
-      connectionString
-    });
+    const isSupabase = connectionString.includes('supabase.co');
+    const poolConfig = isSupabase
+      ? { connectionString, ssl: { rejectUnauthorized: false } }
+      : { connectionString };
+    poolInstance = new Pool(poolConfig);
   }
   return poolInstance;
 }
