@@ -14,6 +14,8 @@
     "db:reset:supabase": "supabase db reset",
     "deploy": "echo '⚠️  Deploy ahora se hace automáticamente vía GitHub Actions. Haz push a main o ejecuta el workflow manualmente desde GitHub.'",
     "deploy:manual": "./scripts/deploy.sh my-personal-budget-483023 us-central1",
+    "deploy:setup:sa": "./scripts/setupServiceAccount.sh",
+    "deploy:secrets:check": "node scripts/checkSecrets.js",
     "deploy:secrets:create": "echo 'Creando secrets. Asegúrate de tener las variables en .env' && node scripts/createSecrets.js",
     "deploy:secrets:update": "echo 'Actualizando secrets. Asegúrate de tener las variables en .env' && node scripts/updateSecrets.js",
     "deploy:status": "gcloud run services describe budget-backend --region us-central1 --format='value(status.url)'",
