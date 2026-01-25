@@ -10,7 +10,7 @@ export class LoginUser {
 
   async execute(email: string, password: string): Promise<string> {
     const result = await pool.query(
-      'SELECT id, email, password FROM users WHERE email = $1',
+      'SELECT id, email, password, role, active FROM users WHERE email = $1',
       [email]
     );
 
@@ -19,13 +19,18 @@ export class LoginUser {
     }
 
     const user = result.rows[0];
+
+    if (!user.active) {
+      throw new Error('Usuario desactivado');
+    }
+
     const isPasswordValid = await this.passwordHasher.compare(password, user.password);
 
     if (!isPasswordValid) {
       throw new Error('Credenciales inválidas');
     }
 
-    return this.tokenGenerator.generate(user.id, user.email);
+    return this.tokenGenerator.generate(user.id, user.email, user.role);
   }
 }
 

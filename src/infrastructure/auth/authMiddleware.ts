@@ -20,8 +20,9 @@ export function authenticateToken(request: Request, response: Response, next: Ne
   }
 
   try {
-    const decoded = jwt.verify(token, secret) as { userId: string; email: string };
+    const decoded = jwt.verify(token, secret) as { userId: string; email: string; role?: 'root' | 'admin' | 'user' };
     request.userId = decoded.userId;
+    request.userRole = decoded.role || 'user';
     next();
   } catch (error) {
     response.status(401).json({ error: 'Token inválido o expirado' });

@@ -4,3 +4,7 @@ dist/
 *.log
 .DS_Store
 
+# Google Cloud Service Account Keys
+*-key.json
+github-actions-key.json
+
