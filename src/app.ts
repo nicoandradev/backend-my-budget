@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import swaggerUi from 'swagger-ui-express';
 import registerRoute from './routes/registerRoute';
 import loginRoute from './routes/loginRoute';
+import forgotPasswordRoute from './routes/forgotPasswordRoute';
+import resetPasswordRoute from './routes/resetPasswordRoute';
 import expensesRoute from './routes/expensesRoute';
 import incomesRoute from './routes/incomesRoute';
 import summaryRoute from './routes/summaryRoute';
@@ -39,22 +41,32 @@ app.get('/api-docs.json', (request, response) => {
 
 app.use(cors({
   origin: (origin, callback) => {
+    // Permitir requests sin origin (como Postman, curl, etc.)
     if (!origin) {
       return callback(null, true);
     }
     
-    if (allowedOrigins.includes(origin)) {
+    // Normalizar el origen (remover trailing slash si existe)
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    const normalizedAllowed = allowedOrigins.map(o => o?.replace(/\/$/, ''));
+    
+    if (normalizedAllowed.includes(normalizedOrigin)) {
       callback(null, true);
     } else {
+      console.warn(`CORS: Origin "${origin}" not allowed. Allowed origins:`, normalizedAllowed);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type'],
+  maxAge: 86400 // 24 horas
 }));
 app.use(registerRoute);
 app.use(loginRoute);
+app.use(forgotPasswordRoute);
+app.use(resetPasswordRoute);
 app.use('/expenses', expensesRoute);
 app.use('/incomes', incomesRoute);
 app.use('/summary', summaryRoute);

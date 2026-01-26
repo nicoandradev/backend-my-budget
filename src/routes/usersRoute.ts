@@ -8,13 +8,15 @@ import { UpdateUserRole } from '../useCases/UpdateUserRole';
 import { EmailValidator } from '../infrastructure/validation/EmailValidator';
 import { EmailService } from '../infrastructure/email/EmailService';
 import { PasswordHasher } from '../infrastructure/password/PasswordHasher';
+import { InviteTokenGenerator } from '../infrastructure/jwt/InviteTokenGenerator';
 
 const router = Router();
 
 const emailValidator = new EmailValidator();
 const emailService = new EmailService();
 const passwordHasher = new PasswordHasher();
-const inviteUser = new InviteUser(emailValidator, emailService, passwordHasher);
+const inviteTokenGenerator = new InviteTokenGenerator();
+const inviteUser = new InviteUser(emailValidator, emailService, passwordHasher, inviteTokenGenerator);
 const listUsers = new ListUsers();
 const toggleUserActive = new ToggleUserActive();
 const updateUserRole = new UpdateUserRole();
@@ -75,8 +77,23 @@ router.post('/invite', authenticateToken, requireAdmin, async (request: Request,
         response.status(409).json({ error: error.message });
         return;
       }
+      if (error.message.includes('Mailgun') || error.message.includes('not allowed to send')) {
+        response.status(500).json({ 
+          error: 'Error al enviar invitación por email',
+          details: error.message 
+        });
+        return;
+      }
+      if (error.message.includes('Error al enviar email')) {
+        response.status(500).json({ 
+          error: 'Error al enviar invitación por email',
+          details: error.message 
+        });
+        return;
+      }
     }
-    throw error;
+    console.error('Error inesperado al invitar usuario:', error);
+    response.status(500).json({ error: 'Error interno del servidor' });
   }
 });
 
