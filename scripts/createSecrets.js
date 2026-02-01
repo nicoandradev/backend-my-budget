@@ -18,6 +18,11 @@ const secrets = [
   { name: 'SMTP_FROM_EMAIL', envVar: 'SMTP_FROM_EMAIL', optional: true },
   { name: 'SMTP_FROM_NAME', envVar: 'SMTP_FROM_NAME', optional: true },
   { name: 'FRONTEND_URL', envVar: 'FRONTEND_URL', optional: true },
+  { name: 'GOOGLE_CLIENT_ID', envVar: 'GOOGLE_CLIENT_ID', optional: true },
+  { name: 'GOOGLE_CLIENT_SECRET', envVar: 'GOOGLE_CLIENT_SECRET', optional: true },
+  { name: 'GMAIL_PUBSUB_TOPIC', envVar: 'GMAIL_PUBSUB_TOPIC', optional: true },
+  { name: 'OPENAI_API_KEY', envVar: 'OPENAI_API_KEY', optional: true },
+  { name: 'GMAIL_AUTH_REDIRECT_URI', envVar: 'GMAIL_AUTH_REDIRECT_URI', optional: true },
 ];
 
 console.log('🔐 Creando secrets en Google Cloud Secret Manager...\n');
