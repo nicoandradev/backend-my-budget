@@ -4,7 +4,11 @@ import { ExpenseExtractor } from '../infrastructure/openai/ExpenseExtractor';
 import { CreateExpense } from './CreateExpense';
 import { CreateIncome } from './CreateIncome';
 
-const bancoChileDomains = ['bancochile.cl', 'notificaciones.bancochile.cl'];
+const bancoChileSenders = [
+  'bancochile.cl',
+  'notificaciones.bancochile.cl',
+  'enviodigital@bancochile.cl'
+];
 
 export class ProcessGmailBankEmail {
   private expenseExtractor: ExpenseExtractor;
@@ -76,19 +80,25 @@ export class ProcessGmailBankEmail {
       return;
     }
 
+    const metadata = await GmailClient.getMessageMetadata(refreshToken, messageId);
+    if (!metadata) {
+      console.log('[ProcessGmail] No se pudo obtener metadata del mensaje', messageId);
+      return;
+    }
+
+    const isBancoChile = this.isBancoChileEmail(metadata.from);
+    if (!isBancoChile) {
+      console.log('[ProcessGmail] Mensaje', messageId, 'no es de Banco de Chile, omitiendo descarga. from:', metadata.from);
+      return;
+    }
+
     const message = await GmailClient.getMessage(refreshToken, messageId);
     if (!message) {
-      console.log('[ProcessGmail] No se pudo obtener mensaje', messageId);
+      console.log('[ProcessGmail] No se pudo obtener mensaje completo', messageId);
       return;
     }
 
-    console.log('[ProcessGmail] Mensaje obtenido:', { id: message.id, from: message.from, snippet: message.snippet?.slice(0, 80) });
-
-    const isBancoChile = this.isBancoChileEmail(message.from);
-    if (!isBancoChile) {
-      console.log('[ProcessGmail] Mensaje', messageId, 'no es de Banco de Chile. from:', message.from);
-      return;
-    }
+    console.log('[ProcessGmail] Mensaje Banco de Chile obtenido:', { id: message.id, from: message.from, snippet: message.snippet?.slice(0, 80) });
 
     const emailBody = message.body || message.snippet;
     if (!emailBody) {
@@ -129,8 +139,8 @@ export class ProcessGmailBankEmail {
   }
 
   private isBancoChileEmail(from: string): boolean {
-    const fromLower = from.toLowerCase();
-    return bancoChileDomains.some(domain => fromLower.includes(domain));
+    const fromLower = from.toLowerCase().trim();
+    return bancoChileSenders.some(sender => fromLower.includes(sender));
   }
 
   private parseDate(dateString: string): Date {

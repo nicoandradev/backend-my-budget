@@ -12,6 +12,14 @@ const gmailAuthStateSecret = process.env.JWT_SECRET;
 const pubSubTopic = process.env.GMAIL_PUBSUB_TOPIC;
 const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+function expirationToTimestamp(expirationMs: string): string {
+  const ms = parseInt(expirationMs, 10);
+  if (Number.isNaN(ms)) {
+    return new Date().toISOString();
+  }
+  return new Date(ms).toISOString();
+}
+
 function createStateToken(userId: string): string {
   if (!gmailAuthStateSecret) {
     throw new Error('JWT_SECRET no está configurado');
@@ -79,18 +87,20 @@ router.get('/auth/gmail/callback', async (request: Request, response: Response) 
       [userId]
     );
 
+    const watchExpiration = expirationToTimestamp(watchResult.expiration);
+
     if (existingConnection.rows.length > 0) {
       await pool.query(
         `UPDATE gmail_connections 
          SET gmail_address = $1, refresh_token = $2, history_id = $3, watch_expiration = $4, updated_at = NOW()
          WHERE user_id = $5`,
-        [gmailAddress, refreshToken, watchResult.historyId, watchResult.expiration, userId]
+        [gmailAddress, refreshToken, watchResult.historyId, watchExpiration, userId]
       );
     } else {
       await pool.query(
         `INSERT INTO gmail_connections (user_id, gmail_address, refresh_token, history_id, watch_expiration)
          VALUES ($1, $2, $3, $4, $5)`,
-        [userId, gmailAddress, refreshToken, watchResult.historyId, watchResult.expiration]
+        [userId, gmailAddress, refreshToken, watchResult.historyId, watchExpiration]
       );
     }
 

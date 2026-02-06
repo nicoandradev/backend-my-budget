@@ -77,6 +77,39 @@ export async function listHistoryMessageIds(
   return messageIds;
 }
 
+export async function getMessageMetadata(
+  refreshToken: string,
+  messageId: string
+): Promise<{ from: string } | null> {
+  const accessToken = await gmailAuth.getAccessToken(refreshToken);
+  const oauth2Client = new google.auth.OAuth2();
+  oauth2Client.setCredentials({ access_token: accessToken });
+
+  const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
+  const response = await gmail.users.messages.get({
+    userId: 'me',
+    id: messageId,
+    format: 'metadata',
+    metadataHeaders: ['From']
+  });
+
+  const message = response.data;
+  if (!message || !message.id) {
+    return null;
+  }
+
+  let from = '';
+  const headers = message.payload?.headers || [];
+  for (const h of headers) {
+    if (h.name?.toLowerCase() === 'from' && h.value) {
+      from = h.value;
+      break;
+    }
+  }
+
+  return { from };
+}
+
 export async function getMessage(
   refreshToken: string,
   messageId: string
