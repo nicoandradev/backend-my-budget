@@ -18,19 +18,23 @@ export class ProcessGmailBankEmail {
   }
 
   async execute(gmailAddress: string, historyId: string): Promise<void> {
+    console.log('[ProcessGmail] Iniciando. emailAddress:', gmailAddress, 'historyId:', historyId);
+
     const connection = await this.findConnection(gmailAddress);
     if (!connection) {
-      console.log(`No se encontró conexión para Gmail: ${gmailAddress}`);
+      console.log('[ProcessGmail] No se encontró conexión para Gmail:', gmailAddress);
       return;
     }
 
     const { userId, refreshToken, lastHistoryId } = connection;
+    console.log('[ProcessGmail] Conexión encontrada. userId:', userId, 'lastHistoryId:', lastHistoryId);
 
     const startHistoryId = lastHistoryId || historyId;
     const messageIds = await GmailClient.listHistoryMessageIds(refreshToken, startHistoryId);
+    console.log('[ProcessGmail] IDs de mensajes obtenidos:', messageIds.length, messageIds);
 
     if (messageIds.length === 0) {
-      console.log(`No hay mensajes nuevos para ${gmailAddress}`);
+      console.log('[ProcessGmail] No hay mensajes nuevos para', gmailAddress);
       return;
     }
 
@@ -68,38 +72,44 @@ export class ProcessGmailBankEmail {
   private async processMessage(userId: string, refreshToken: string, messageId: string): Promise<void> {
     const alreadyProcessed = await this.isAlreadyProcessed(messageId);
     if (alreadyProcessed) {
-      console.log(`Mensaje ${messageId} ya procesado, saltando`);
+      console.log('[ProcessGmail] Mensaje', messageId, 'ya procesado, saltando');
       return;
     }
 
     const message = await GmailClient.getMessage(refreshToken, messageId);
     if (!message) {
-      console.log(`No se pudo obtener mensaje ${messageId}`);
+      console.log('[ProcessGmail] No se pudo obtener mensaje', messageId);
       return;
     }
 
+    console.log('[ProcessGmail] Mensaje obtenido:', { id: message.id, from: message.from, snippet: message.snippet?.slice(0, 80) });
+
     const isBancoChile = this.isBancoChileEmail(message.from);
     if (!isBancoChile) {
-      console.log(`Mensaje ${messageId} no es de Banco de Chile (from: ${message.from})`);
+      console.log('[ProcessGmail] Mensaje', messageId, 'no es de Banco de Chile. from:', message.from);
       return;
     }
 
     const emailBody = message.body || message.snippet;
     if (!emailBody) {
-      console.log(`Mensaje ${messageId} no tiene contenido`);
+      console.log('[ProcessGmail] Mensaje', messageId, 'no tiene contenido');
       return;
     }
 
+    console.log('[ProcessGmail] Cuerpo del correo (primeros 200 chars):', emailBody.slice(0, 200));
+
     const transactions = await this.expenseExtractor.extractTransactions(emailBody);
-    console.log(`Extraídas ${transactions.length} transacciones del mensaje ${messageId}`);
+    console.log('[ProcessGmail] Transacciones extraídas:', transactions.length, JSON.stringify(transactions, null, 2));
 
     for (const tx of transactions) {
       const date = this.parseDate(tx.date);
 
       if (tx.type === 'expense') {
         await this.createExpense.execute(userId, tx.merchant, tx.amount, tx.category, date);
+        console.log('[ProcessGmail] Gasto creado:', tx.merchant, tx.amount, tx.category);
       } else {
         await this.createIncome.execute(userId, tx.merchant, tx.amount, tx.category, date);
+        console.log('[ProcessGmail] Ingreso creado:', tx.merchant, tx.amount, tx.category);
       }
     }
 
@@ -107,6 +117,7 @@ export class ProcessGmailBankEmail {
       'INSERT INTO processed_emails (gmail_message_id, user_id) VALUES ($1, $2)',
       [messageId, userId]
     );
+    console.log('[ProcessGmail] Mensaje', messageId, 'marcado como procesado');
   }
 
   private async isAlreadyProcessed(messageId: string): Promise<boolean> {

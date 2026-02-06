@@ -30,8 +30,10 @@ function verifyStateToken(state: string): string {
 router.get('/auth/gmail', authenticateToken, (request: Request, response: Response) => {
   try {
     const userId = request.userId!;
+    console.log('[Gmail OAuth] Iniciando flujo para userId:', userId);
     const state = createStateToken(userId);
     const authUrl = gmailAuth.generateAuthUrl(state);
+    console.log('[Gmail OAuth] URL de autorización generada, redirigiendo a Google');
     response.json({ redirectUrl: authUrl });
   } catch (error) {
     console.error('Error iniciando OAuth Gmail:', error);
@@ -42,26 +44,35 @@ router.get('/auth/gmail', authenticateToken, (request: Request, response: Respon
 router.get('/auth/gmail/callback', async (request: Request, response: Response) => {
   try {
     const { code, state } = request.query;
+    console.log('[Gmail OAuth] Callback recibido. Query params:', { hasCode: !!code, hasState: !!state });
 
     if (!code || typeof code !== 'string') {
+      console.log('[Gmail OAuth] Error: falta code');
       response.redirect(`${frontendUrl}?gmail=error&message=code_missing`);
       return;
     }
 
     if (!state || typeof state !== 'string') {
+      console.log('[Gmail OAuth] Error: falta state');
       response.redirect(`${frontendUrl}?gmail=error&message=state_missing`);
       return;
     }
 
     const userId = verifyStateToken(state);
+    console.log('[Gmail OAuth] State verificado, userId:', userId);
+
     const { refreshToken } = await gmailAuth.getTokensFromCode(code);
+    console.log('[Gmail OAuth] Tokens obtenidos de Google (refreshToken presente:', !!refreshToken, ')');
+
     const gmailAddress = await GmailClient.getProfileEmail(refreshToken);
+    console.log('[Gmail OAuth] Perfil Gmail obtenido:', gmailAddress);
 
     if (!pubSubTopic) {
       throw new Error('GMAIL_PUBSUB_TOPIC no está configurado');
     }
 
     const watchResult = await GmailClient.watchGmail(refreshToken, pubSubTopic);
+    console.log('[Gmail OAuth] Watch configurado:', { historyId: watchResult.historyId, expiration: watchResult.expiration });
 
     const existingConnection = await pool.query(
       'SELECT id FROM gmail_connections WHERE user_id = $1',
@@ -83,6 +94,7 @@ router.get('/auth/gmail/callback', async (request: Request, response: Response) 
       );
     }
 
+    console.log('[Gmail OAuth] Conexión guardada. Redirigiendo a:', `${frontendUrl}?gmail=connected&email=...`);
     response.redirect(`${frontendUrl}?gmail=connected&email=${encodeURIComponent(gmailAddress)}`);
   } catch (error) {
     console.error('Error en callback Gmail OAuth:', error);
