@@ -59,22 +59,28 @@ export async function listHistoryMessageIds(
   const response = await gmail.users.history.list({
     userId: 'me',
     startHistoryId,
-    historyTypes: ['messageAdded']
+    historyTypes: ['messageAdded', 'messageDeleted']
   });
 
-  const messageIds: string[] = [];
+  const addedIds = new Set<string>();
+  const deletedIds = new Set<string>();
   const history = response.data.history || [];
 
   for (const record of history) {
-    const messages = record.messagesAdded || [];
-    for (const msg of messages) {
-      if (msg.message?.id) {
-        messageIds.push(msg.message.id);
-      }
+    for (const msg of record.messagesAdded || []) {
+      if (msg.message?.id) addedIds.add(msg.message.id);
+    }
+    for (const msg of record.messagesDeleted || []) {
+      if (msg.message?.id) deletedIds.add(msg.message.id);
     }
   }
 
-  return messageIds;
+  return [...addedIds].filter(id => !deletedIds.has(id));
+}
+
+function isMessageNotFoundError(error: unknown): boolean {
+  const status = (error as { response?: { status?: number } })?.response?.status;
+  return status === 404;
 }
 
 export async function getMessageMetadata(
@@ -86,12 +92,18 @@ export async function getMessageMetadata(
   oauth2Client.setCredentials({ access_token: accessToken });
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  const response = await gmail.users.messages.get({
-    userId: 'me',
-    id: messageId,
-    format: 'metadata',
-    metadataHeaders: ['From']
-  });
+  let response;
+  try {
+    response = await gmail.users.messages.get({
+      userId: 'me',
+      id: messageId,
+      format: 'metadata',
+      metadataHeaders: ['From']
+    });
+  } catch (error) {
+    if (isMessageNotFoundError(error)) return null;
+    throw error;
+  }
 
   const message = response.data;
   if (!message || !message.id) {
@@ -119,11 +131,17 @@ export async function getMessage(
   oauth2Client.setCredentials({ access_token: accessToken });
 
   const gmail = google.gmail({ version: 'v1', auth: oauth2Client });
-  const response = await gmail.users.messages.get({
-    userId: 'me',
-    id: messageId,
-    format: 'full'
-  });
+  let response;
+  try {
+    response = await gmail.users.messages.get({
+      userId: 'me',
+      id: messageId,
+      format: 'full'
+    });
+  } catch (error) {
+    if (isMessageNotFoundError(error)) return null;
+    throw error;
+  }
 
   const message = response.data;
   if (!message || !message.id) {

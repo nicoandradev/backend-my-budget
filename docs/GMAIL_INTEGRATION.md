@@ -61,6 +61,8 @@ Gmail necesita publicar en el tema:
    - Desarrollo: `http://localhost:3000/auth/gmail/callback`
 4. Guarda el **Client ID** y **Client Secret**
 
+**App móvil (React Native/Expo):** La app móvil usa el mismo flujo OAuth. El backend redirige a `budgetapp://gmail?status=connected&email=...` cuando el usuario inició el flujo con `?platform=mobile`. No es necesario añadir URI adicionales en Google; el redirect sigue yendo al backend, que luego redirige a la app vía deep link.
+
 ### 6. Configurar Pantalla de Consentimiento
 
 1. Ve a **APIs & Services > OAuth consent screen**

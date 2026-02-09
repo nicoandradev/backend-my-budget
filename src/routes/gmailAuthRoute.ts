@@ -20,26 +20,29 @@ function expirationToTimestamp(expirationMs: string): string {
   return new Date(ms).toISOString();
 }
 
-function createStateToken(userId: string): string {
+function createStateToken(userId: string, platform?: string): string {
   if (!gmailAuthStateSecret) {
     throw new Error('JWT_SECRET no está configurado');
   }
-  return jwt.sign({ userId }, gmailAuthStateSecret, { expiresIn: '5m' });
+  return jwt.sign({ userId, platform }, gmailAuthStateSecret, { expiresIn: '5m' });
 }
 
-function verifyStateToken(state: string): string {
+function verifyStateToken(state: string): { userId: string; platform?: string } {
   if (!gmailAuthStateSecret) {
     throw new Error('JWT_SECRET no está configurado');
   }
-  const decoded = jwt.verify(state, gmailAuthStateSecret) as { userId: string };
-  return decoded.userId;
+  const decoded = jwt.verify(state, gmailAuthStateSecret) as { userId: string; platform?: string };
+  return { userId: decoded.userId, platform: decoded.platform };
 }
+
+const mobileRedirectScheme = 'budgetapp://gmail';
 
 router.get('/auth/gmail', authenticateToken, (request: Request, response: Response) => {
   try {
     const userId = request.userId!;
-    console.log('[Gmail OAuth] Iniciando flujo para userId:', userId);
-    const state = createStateToken(userId);
+    const platform = request.query.platform === 'mobile' ? 'mobile' : undefined;
+    console.log('[Gmail OAuth] Iniciando flujo para userId:', userId, 'platform:', platform || 'web');
+    const state = createStateToken(userId, platform);
     const authUrl = gmailAuth.generateAuthUrl(state);
     console.log('[Gmail OAuth] URL de autorización generada, redirigiendo a Google');
     response.json({ redirectUrl: authUrl });
@@ -66,8 +69,8 @@ router.get('/auth/gmail/callback', async (request: Request, response: Response) 
       return;
     }
 
-    const userId = verifyStateToken(state);
-    console.log('[Gmail OAuth] State verificado, userId:', userId);
+    const { userId, platform } = verifyStateToken(state);
+    console.log('[Gmail OAuth] State verificado, userId:', userId, 'platform:', platform || 'web');
 
     const { refreshToken } = await gmailAuth.getTokensFromCode(code);
     console.log('[Gmail OAuth] Tokens obtenidos de Google (refreshToken presente:', !!refreshToken, ')');
@@ -104,12 +107,27 @@ router.get('/auth/gmail/callback', async (request: Request, response: Response) 
       );
     }
 
-    console.log('[Gmail OAuth] Conexión guardada. Redirigiendo a:', `${frontendUrl}?gmail=connected&email=...`);
-    response.redirect(`${frontendUrl}?gmail=connected&email=${encodeURIComponent(gmailAddress)}`);
+    const redirectUrl =
+      platform === 'mobile'
+        ? `${mobileRedirectScheme}?status=connected&email=${encodeURIComponent(gmailAddress)}`
+        : `${frontendUrl}?gmail=connected&email=${encodeURIComponent(gmailAddress)}`;
+    console.log('[Gmail OAuth] Conexión guardada. Redirigiendo a:', redirectUrl.replace(gmailAddress, '...'));
+    response.redirect(redirectUrl);
   } catch (error) {
     console.error('Error en callback Gmail OAuth:', error);
     const message = error instanceof Error ? encodeURIComponent(error.message) : 'unknown';
-    response.redirect(`${frontendUrl}?gmail=error&message=${message}`);
+    let platform: string | undefined;
+    try {
+      const state = typeof request.query.state === 'string' ? request.query.state : '';
+      platform = state ? verifyStateToken(state).platform : undefined;
+    } catch {
+      platform = undefined;
+    }
+    const errorRedirectUrl =
+      platform === 'mobile'
+        ? `${mobileRedirectScheme}?status=error&message=${message}`
+        : `${frontendUrl}?gmail=error&message=${message}`;
+    response.redirect(errorRedirectUrl);
   }
 });
 
