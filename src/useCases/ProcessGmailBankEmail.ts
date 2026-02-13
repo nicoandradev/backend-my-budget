@@ -37,13 +37,12 @@ export class ProcessGmailBankEmail {
     const messageIds = await GmailClient.listHistoryMessageIds(refreshToken, startHistoryId);
     console.log('[ProcessGmail] IDs de mensajes obtenidos:', messageIds.length, messageIds);
 
-    if (messageIds.length === 0) {
+    if (messageIds.length > 0) {
+      for (const messageId of messageIds) {
+        await this.processMessage(userId, refreshToken, messageId);
+      }
+    } else {
       console.log('[ProcessGmail] No hay mensajes nuevos para', gmailAddress);
-      return;
-    }
-
-    for (const messageId of messageIds) {
-      await this.processMessage(userId, refreshToken, messageId);
     }
 
     await pool.query(
