@@ -13,6 +13,7 @@ export interface GmailMessage {
   from: string;
   snippet: string;
   body: string;
+  date?: string;
 }
 
 export async function watchGmail(refreshToken: string, topicName: string): Promise<WatchResult> {
@@ -149,12 +150,12 @@ export async function getMessage(
   }
 
   let from = '';
+  let dateHeader = '';
   const headers = message.payload?.headers || [];
   for (const h of headers) {
-    if (h.name?.toLowerCase() === 'from' && h.value) {
-      from = h.value;
-      break;
-    }
+    const name = h.name?.toLowerCase();
+    if (name === 'from' && h.value) from = h.value;
+    if (name === 'date' && h.value) dateHeader = h.value;
   }
 
   let body = '';
@@ -180,11 +181,14 @@ export async function getMessage(
     body = Buffer.from(message.payload.body.data, 'base64').toString('utf-8');
   }
 
+  const date = dateHeader || (message.internalDate ? new Date(Number(message.internalDate)).toISOString().slice(0, 10) : undefined);
+
   return {
     id: message.id,
     from,
     snippet: message.snippet || '',
-    body
+    body,
+    date
   };
 }
 

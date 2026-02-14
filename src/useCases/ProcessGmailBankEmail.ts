@@ -114,13 +114,17 @@ export class ProcessGmailBankEmail {
 
     console.log('[ProcessGmail] Cuerpo del correo (primeros 200 chars):', emailBody.slice(0, 200));
 
+    const emailDate = message.date ? this.formatEmailDateForExtractor(message.date) : undefined;
     const transactions = await this.expenseExtractor.extractTransactions(
       emailBody,
-      undefined,
+      emailDate,
       bankConfig.bankName,
       bankConfig.extractionInstructions
     );
     console.log('[ProcessGmail] Transacciones extraídas:', transactions.length, JSON.stringify(transactions, null, 2));
+    if (transactions.length === 0) {
+      console.warn('[ProcessGmail] Cero transacciones extraídas. Revisa extraction_instructions para este banco. from:', metadata.from, 'snippet:', message.snippet?.slice(0, 100));
+    }
 
     for (const tx of transactions) {
       const date = this.parseDate(tx.date);
@@ -164,6 +168,17 @@ export class ProcessGmailBankEmail {
   private findMatchingBank(from: string, configs: BankEmailConfig[]): BankEmailConfig | null {
     const fromLower = from.toLowerCase().trim();
     return configs.find((config) => config.senderPatterns.some((pattern) => fromLower.includes(pattern.toLowerCase()))) ?? null;
+  }
+
+  private formatEmailDateForExtractor(dateValue: string): string {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateValue)) {
+      return dateValue;
+    }
+    const parsed = new Date(dateValue);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString().slice(0, 10);
+    }
+    return dateValue;
   }
 
   private parseDate(dateString: string): Date {

@@ -72,7 +72,12 @@ router.post('/', authenticateToken, requireAdmin, async (request: Request, respo
     response.status(201).json(rowToConfig(result.rows[0] as BankEmailConfigRow));
   } catch (error) {
     console.error('Error creando config de correos bancarios:', error);
-    response.status(500).json({ error: 'Error al crear configuración' });
+    const message = error instanceof Error ? error.message : 'Error desconocido';
+    const isDev = process.env.NODE_ENV !== 'production';
+    response.status(500).json({
+      error: 'Error al crear configuración',
+      ...(isDev && { details: message })
+    });
   }
 });
 
