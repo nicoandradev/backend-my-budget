@@ -4,11 +4,11 @@ import { ExpenseExtractor } from '../infrastructure/openai/ExpenseExtractor';
 import { CreateExpense } from './CreateExpense';
 import { CreateIncome } from './CreateIncome';
 
-const bancoChileSenders = [
-  'bancochile.cl',
-  'notificaciones.bancochile.cl',
-  'enviodigital@bancochile.cl'
-];
+interface BankEmailConfig {
+  bankName: string;
+  senderPatterns: string[];
+  extractionInstructions: string;
+}
 
 export class ProcessGmailBankEmail {
   private expenseExtractor: ExpenseExtractor;
@@ -37,9 +37,11 @@ export class ProcessGmailBankEmail {
     const messageIds = await GmailClient.listHistoryMessageIds(refreshToken, startHistoryId);
     console.log('[ProcessGmail] IDs de mensajes obtenidos:', messageIds.length, messageIds);
 
+    const bankConfigs = await this.loadBankConfigs();
+
     if (messageIds.length > 0) {
       for (const messageId of messageIds) {
-        await this.processMessage(userId, refreshToken, messageId);
+        await this.processMessage(userId, refreshToken, messageId, bankConfigs);
       }
     } else {
       console.log('[ProcessGmail] No hay mensajes nuevos para', gmailAddress);
@@ -72,7 +74,12 @@ export class ProcessGmailBankEmail {
     };
   }
 
-  private async processMessage(userId: string, refreshToken: string, messageId: string): Promise<void> {
+  private async processMessage(
+    userId: string,
+    refreshToken: string,
+    messageId: string,
+    bankConfigs: BankEmailConfig[]
+  ): Promise<void> {
     const alreadyProcessed = await this.isAlreadyProcessed(messageId);
     if (alreadyProcessed) {
       console.log('[ProcessGmail] Mensaje', messageId, 'ya procesado, saltando');
@@ -85,9 +92,9 @@ export class ProcessGmailBankEmail {
       return;
     }
 
-    const isBancoChile = this.isBancoChileEmail(metadata.from);
-    if (!isBancoChile) {
-      console.log('[ProcessGmail] Mensaje', messageId, 'no es de Banco de Chile, omitiendo descarga. from:', metadata.from);
+    const bankConfig = this.findMatchingBank(metadata.from, bankConfigs);
+    if (!bankConfig) {
+      console.log('[ProcessGmail] Mensaje', messageId, 'no coincide con ningún banco configurado. from:', metadata.from);
       return;
     }
 
@@ -97,7 +104,7 @@ export class ProcessGmailBankEmail {
       return;
     }
 
-    console.log('[ProcessGmail] Mensaje Banco de Chile obtenido:', { id: message.id, from: message.from, snippet: message.snippet?.slice(0, 80) });
+    console.log('[ProcessGmail] Mensaje', bankConfig.bankName, 'obtenido:', { id: message.id, from: message.from, snippet: message.snippet?.slice(0, 80) });
 
     const emailBody = message.body || message.snippet;
     if (!emailBody) {
@@ -107,7 +114,12 @@ export class ProcessGmailBankEmail {
 
     console.log('[ProcessGmail] Cuerpo del correo (primeros 200 chars):', emailBody.slice(0, 200));
 
-    const transactions = await this.expenseExtractor.extractTransactions(emailBody);
+    const transactions = await this.expenseExtractor.extractTransactions(
+      emailBody,
+      undefined,
+      bankConfig.bankName,
+      bankConfig.extractionInstructions
+    );
     console.log('[ProcessGmail] Transacciones extraídas:', transactions.length, JSON.stringify(transactions, null, 2));
 
     for (const tx of transactions) {
@@ -137,9 +149,21 @@ export class ProcessGmailBankEmail {
     return result.rows.length > 0;
   }
 
-  private isBancoChileEmail(from: string): boolean {
+  private async loadBankConfigs(): Promise<BankEmailConfig[]> {
+    const result = await pool.query(
+      'SELECT bank_name, sender_patterns, extraction_instructions FROM bank_email_configs'
+    );
+    const rows = result.rows as { bank_name: string; sender_patterns: string[]; extraction_instructions: string }[];
+    return rows.map((row) => ({
+      bankName: row.bank_name,
+      senderPatterns: row.sender_patterns,
+      extractionInstructions: row.extraction_instructions
+    }));
+  }
+
+  private findMatchingBank(from: string, configs: BankEmailConfig[]): BankEmailConfig | null {
     const fromLower = from.toLowerCase().trim();
-    return bancoChileSenders.some(sender => fromLower.includes(sender));
+    return configs.find((config) => config.senderPatterns.some((pattern) => fromLower.includes(pattern.toLowerCase()))) ?? null;
   }
 
   private parseDate(dateString: string): Date {

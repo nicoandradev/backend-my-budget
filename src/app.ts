@@ -14,6 +14,7 @@ import usersRoute from './routes/usersRoute';
 import gmailAuthRoute from './routes/gmailAuthRoute';
 import gmailRoute from './routes/gmailRoute';
 import gmailWebhookRoute from './routes/gmailWebhookRoute';
+import bankEmailConfigRoute from './routes/bankEmailConfigRoute';
 import { swaggerSpec } from './infrastructure/swagger/swaggerConfig';
 import cors from 'cors';
 
@@ -77,6 +78,7 @@ app.use('/webhooks', bancoChileWebhookRoute);
 app.use('/webhooks', gmailWebhookRoute);
 app.use('/bancochile/keys', bancoChileKeysRoute);
 app.use('/users', usersRoute);
+app.use('/bank-email-configs', bankEmailConfigRoute);
 app.use(gmailAuthRoute);
 app.use(gmailRoute);
 

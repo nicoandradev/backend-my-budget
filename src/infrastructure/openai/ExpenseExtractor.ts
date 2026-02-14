@@ -26,7 +26,7 @@ const validCategories = [
   'Otros'
 ];
 
-const systemPrompt = `Eres un asistente que extrae transacciones bancarias del contenido de correos electrónicos del Banco de Chile.
+const defaultSystemPrompt = `Eres un asistente que extrae transacciones bancarias del contenido de correos electrónicos del Banco de Chile.
 
 Extrae TODAS las transacciones del correo y devuelve un array JSON con cada transacción.
 
@@ -50,7 +50,17 @@ export class ExpenseExtractor {
     this.client = new OpenAI({ apiKey });
   }
 
-  async extractTransactions(emailBody: string, emailDate?: string): Promise<ExtractedTransaction[]> {
+  async extractTransactions(
+    emailBody: string,
+    emailDate?: string,
+    bankName?: string,
+    extractionInstructions?: string
+  ): Promise<ExtractedTransaction[]> {
+    const systemPrompt =
+      bankName && extractionInstructions
+        ? `Eres un asistente que extrae transacciones bancarias del contenido de correos electrónicos de ${bankName}.\n\n${extractionInstructions}\n\nDevuelve un array JSON con cada transacción. Para cada transacción: merchant, amount (número), date (YYYY-MM-DD), category (Deporte, Ropa, Recreacional, TC, Cursos, Supermercado, Transporte, Vacaciones, Ahorros, Salud, Hogar, Otros), type (expense o income). Si no encuentras transacciones válidas, devuelve [].`
+        : defaultSystemPrompt;
+
     const userPrompt = emailDate
       ? `Fecha del correo: ${emailDate}\n\nContenido del correo:\n${emailBody}`
       : `Contenido del correo:\n${emailBody}`;
