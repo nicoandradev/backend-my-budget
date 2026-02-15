@@ -94,6 +94,9 @@ GOOGLE_CLIENT_SECRET=tu-client-secret
 GMAIL_AUTH_REDIRECT_URI=http://localhost:3000/auth/gmail/callback
 GMAIL_PUBSUB_TOPIC=projects/tu-project-id/topics/gmail-bank-notifications
 
+# Renovación automática del watch (cron)
+CRON_SECRET=tu-secreto-aleatorio-largo
+
 # OpenAI
 OPENAI_API_KEY=sk-...
 ```
@@ -187,9 +190,40 @@ Webhook para notificaciones de Pub/Sub. Sin autenticación.
 
 El watch de Gmail expira en ~7 días. Si expira, Gmail deja de enviar notificaciones y el backend no recibe correos.
 
-**Solución:**
+**Solución manual:**
 - El usuario ve en Mi Perfil "suscripción expirada" y puede pulsar **Renovar conexión** (POST /gmail/renew)
 - Alternativamente: desconectar y volver a conectar Gmail
+
+**Renovación automática (cron):**
+
+Añade al `.env`:
+```env
+CRON_SECRET=tu-secreto-largo-y-aleatorio
+```
+
+Crea un job en **Cloud Scheduler** que llame cada 5 días a:
+- **URL**: `https://tu-dominio.com/cron/gmail-renew`
+- **Método**: POST
+- **Header**: `X-Cron-Secret: tu-secreto-largo-y-aleatorio`
+
+O con query param: `POST /cron/gmail-renew?secret=tu-secreto`
+
+El endpoint renueva todos los watches de Gmail conectados y devuelve `{ ok: true, total, renewed, errors? }`.
+
+### Configurar Cloud Scheduler (Google Cloud)
+
+1. Crea el secret en Secret Manager (si usas deploy con secrets):
+   ```bash
+   echo -n "tu-secreto-aleatorio-largo" | gcloud secrets create CRON_SECRET --data-file=-
+   ```
+
+2. En Cloud Console: **Cloud Scheduler** > **Create Job**
+   - Name: `gmail-watch-renew`
+   - Frequency: `0 2 * * 0,3` (cada domingo y miércoles a las 2:00) o `0 2 */5 * *` (cada 5 días)
+   - Target: HTTP
+   - URL: `https://tu-dominio.com/cron/gmail-renew`
+   - HTTP method: POST
+   - Auth header: Add header `X-Cron-Secret` = (el valor de CRON_SECRET)
 
 ---
 

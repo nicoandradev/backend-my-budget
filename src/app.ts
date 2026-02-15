@@ -14,6 +14,7 @@ import usersRoute from './routes/usersRoute';
 import gmailAuthRoute from './routes/gmailAuthRoute';
 import gmailRoute from './routes/gmailRoute';
 import gmailWebhookRoute from './routes/gmailWebhookRoute';
+import gmailCronRoute from './routes/gmailCronRoute';
 import bankEmailConfigRoute from './routes/bankEmailConfigRoute';
 import { swaggerSpec } from './infrastructure/swagger/swaggerConfig';
 import cors from 'cors';
@@ -63,7 +64,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Cron-Secret'],
   exposedHeaders: ['Content-Type'],
   maxAge: 86400 // 24 horas
 }));
@@ -76,6 +77,7 @@ app.use('/incomes', incomesRoute);
 app.use('/summary', summaryRoute);
 app.use('/webhooks', bancoChileWebhookRoute);
 app.use('/webhooks', gmailWebhookRoute);
+app.use('/cron', gmailCronRoute);
 app.use('/bancochile/keys', bancoChileKeysRoute);
 app.use('/users', usersRoute);
 app.use('/bank-email-configs', bankEmailConfigRoute);
