@@ -26,7 +26,7 @@ function isValidCronRequest(request: Request): boolean {
 }
 
 router.post('/gmail-renew', async (request: Request, response: Response) => {
-  if (!git (request)) {
+  if (!isValidCronRequest(request)) {
     response.status(401).json({ error: 'No autorizado' });
     return;
   }
@@ -51,7 +51,7 @@ router.post('/gmail-renew', async (request: Request, response: Response) => {
         const watchExpiration = expirationToTimestamp(watchResult.expiration);
 
         await pool.query(
-          `UPDATE gmail_connections 
+          `UPDATE gmail_connections
            SET history_id = $1, watch_expiration = $2, updated_at = NOW()
            WHERE user_id = $3`,
           [watchResult.historyId, watchExpiration, conn.user_id]
