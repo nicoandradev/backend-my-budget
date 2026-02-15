@@ -2,12 +2,14 @@ import { pool } from '../infrastructure/database/connection';
 import { EmailValidator } from '../infrastructure/validation/EmailValidator';
 import { EmailService } from '../infrastructure/email/EmailService';
 import { PasswordHasher } from '../infrastructure/password/PasswordHasher';
+import { InviteTokenGenerator } from '../infrastructure/jwt/InviteTokenGenerator';
 
 export class InviteUser {
   constructor(
     private emailValidator: EmailValidator,
     private emailService: EmailService,
-    private passwordHasher: PasswordHasher
+    private passwordHasher: PasswordHasher,
+    private inviteTokenGenerator: InviteTokenGenerator
   ) {}
 
   async execute(inviterUserId: string, email: string): Promise<void> {
@@ -26,7 +28,8 @@ export class InviteUser {
         throw new Error('El usuario ya está registrado y activo');
       }
       if (user.pending_active) {
-        await this.emailService.sendInvitationEmail(email);
+        const inviteToken = this.inviteTokenGenerator.generate(email);
+        await this.emailService.sendInvitationEmail(email, inviteToken);
         return;
       }
     }
@@ -39,6 +42,7 @@ export class InviteUser {
       [email, tempPassword, '', 'user']
     );
 
-    await this.emailService.sendInvitationEmail(email);
+    const inviteToken = this.inviteTokenGenerator.generate(email);
+    await this.emailService.sendInvitationEmail(email, inviteToken);
   }
 }

@@ -19,7 +19,8 @@
     "deploy:secrets:create": "echo 'Creando secrets. Asegúrate de tener las variables en .env' && node scripts/createSecrets.js",
     "deploy:secrets:update": "echo 'Actualizando secrets. Asegúrate de tener las variables en .env' && node scripts/updateSecrets.js",
     "deploy:status": "gcloud run services describe budget-backend --region us-central1 --format='value(status.url)'",
-    "deploy:logs": "gcloud run services logs read budget-backend --region us-central1 --limit 50"
+    "deploy:logs": "gcloud run services logs read budget-backend --region us-central1 --limit 50",
+    "deploy:restart": "gcloud run services update budget-backend --region us-central1 --project my-personal-budget-483023"
   },
   "keywords": [],
   "author": "",
@@ -29,9 +30,11 @@
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
+    "googleapis": "^171.0.0",
     "js-yaml": "^4.1.1",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.8",
+    "openai": "^6.17.0",
     "pg": "^8.11.3",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
