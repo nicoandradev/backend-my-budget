@@ -26,7 +26,7 @@ function isValidCronRequest(request: Request): boolean {
 }
 
 router.post('/gmail-renew', async (request: Request, response: Response) => {
-  if (!isValidCronRequest(request)) {
+  if (!git (request)) {
     response.status(401).json({ error: 'No autorizado' });
     return;
   }

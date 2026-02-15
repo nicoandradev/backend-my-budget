@@ -210,6 +210,22 @@ O con query param: `POST /cron/gmail-renew?secret=tu-secreto`
 
 El endpoint renueva todos los watches de Gmail conectados y devuelve `{ ok: true, total, renewed, errors? }`.
 
+### Configurar con GitHub Actions
+
+Se incluye el workflow `.github/workflows/gmail-renew-cron.yml` que se ejecuta cada 5 días.
+
+**Pasos:**
+
+1. En tu repo de GitHub: **Settings** → **Secrets and variables** → **Actions**
+
+2. Crea estos secretos:
+   - `BACKEND_URL`: URL del backend sin barra final (ej. `https://budget-backend-xxx.run.app`)
+   - `CRON_SECRET`: El mismo valor que `CRON_SECRET` en el backend
+
+3. El workflow corre automáticamente cada 5 días. Para probar: **Actions** → **Gmail Watch Renew** → **Run workflow**
+
+---
+
 ### Configurar Cloud Scheduler (Google Cloud)
 
 1. Crea el secret en Secret Manager (si usas deploy con secrets):

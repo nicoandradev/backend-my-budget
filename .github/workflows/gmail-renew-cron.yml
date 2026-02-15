@@ -1,0 +1,26 @@
+name: Gmail Watch Renew
+
+on:
+  schedule:
+    # Cada 5 días a las 03:00 UTC (evita que expire a los 7 días)
+    - cron: '0 3 */5 * *'
+  workflow_dispatch: # Permite ejecutar manualmente desde GitHub
+
+jobs:
+  renew:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Renew Gmail watches
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "X-Cron-Secret: ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.BACKEND_URL }}/cron/gmail-renew")
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          echo "Response: $BODY"
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Renew OK (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Renew failed (HTTP $HTTP_CODE)"
+            exit 1
+          fi
