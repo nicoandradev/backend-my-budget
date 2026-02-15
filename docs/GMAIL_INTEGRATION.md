@@ -185,12 +185,11 @@ Webhook para notificaciones de Pub/Sub. Sin autenticación.
 
 ## Renovación del Watch
 
-El watch de Gmail expira en ~7 días. Opciones:
+El watch de Gmail expira en ~7 días. Si expira, Gmail deja de enviar notificaciones y el backend no recibe correos.
 
-1. **Manual**: El usuario debe reconectar Gmail cuando expire
-2. **Cron**: Implementar un job que renueve watches antes de expirar
-
-Para renovar manualmente, el usuario puede desconectar y volver a conectar.
+**Solución:**
+- El usuario ve en Mi Perfil "suscripción expirada" y puede pulsar **Renovar conexión** (POST /gmail/renew)
+- Alternativamente: desconectar y volver a conectar Gmail
 
 ---
 
